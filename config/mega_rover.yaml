@@ -1,0 +1,21 @@
+# Example for a Vstone Mega Rover 3, whose base listens on /rover_twist.
+# Start gentle: the vendor sample uses 0.6 m/s and 0.8 rad/s.
+joy_teleop:
+  ros__parameters:
+    device: /dev/input/js0
+    cmd_vel_topic: /rover_twist
+    max_linear: 0.3
+    max_angular: 0.6
+    deadman_button: 2        # X on an Xbox 360 pad
+    deadzone: 0.15
+    rate_hz: 20.0
+    override: false
+
+web_teleop:
+  ros__parameters:
+    port: 8080
+    cmd_vel_topic: /rover_twist
+    max_linear: 0.3
+    max_angular: 0.6
+    watchdog_s: 0.4
+    token: ""
