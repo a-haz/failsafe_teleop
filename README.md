@@ -106,11 +106,16 @@ Parameters of `web_teleop`:
 
 The page is plain HTTP. Use it on a network you trust and set a token.
 
-## Tests
+## Running tests
 
-The tests need only Python 3 and pytest, no ROS:
+The tests need only Python 3 and pytest. ROS does not need to be installed
+to run them. From the repository root, optionally in a fresh virtual
+environment:
 
-```
+```bash
+python3 -m venv ~/venvs/failsafe_teleop
+. ~/venvs/failsafe_teleop/bin/activate
+python3 -m pip install pytest
 python3 -m pytest test
 ```
 
