@@ -172,3 +172,33 @@ def test_http_bad_request_line_gets_an_answer(server):
     with socket.create_connection(("localhost", port), timeout=5) as s:
         s.sendall(b"\x16\x03\x01 not http\r\n\r\n")         # e.g. https:// typed for the page
         assert b" 400 " in s.recv(200)
+
+
+def raw_exchange(port, data):
+    """Send raw bytes on one connection and read until the server closes it."""
+    with socket.create_connection(("localhost", port), timeout=5) as s:
+        s.sendall(data)
+        out = b""
+        while True:
+            chunk = s.recv(4096)
+            if not chunk:
+                return out
+            out += chunk
+
+
+def test_http_unread_body_closes_the_connection(server):
+    state, port = server
+    body = b'{"v": 1}'
+    out = raw_exchange(port, b"POST /cmd?t=wrong HTTP/1.1\r\nHost: x\r\nContent-Length: %d\r\n\r\n%s"
+                       % (len(body), body))
+    assert out.count(b"HTTP/1.") == 1 and b" 401 " in out    # the body is not parsed as a request
+    assert state.current()[2] is False
+
+
+@pytest.mark.parametrize("length,code", [(b"-1", b" 400 "), (b"abc", b" 400 "), (b"1000000000", b" 413 ")])
+def test_http_bad_content_length(server, length, code):
+    state, port = server
+    out = raw_exchange(port, b"POST /cmd?t=s3cret HTTP/1.1\r\nHost: x\r\nContent-Length: " + length +
+                       b"\r\n\r\n{}")
+    assert out.count(b"HTTP/1.") == 1 and code in out
+    assert state.current()[2] is False
