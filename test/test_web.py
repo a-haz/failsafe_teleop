@@ -1,6 +1,7 @@
 """Offline tests for the web joystick core: watchdog, e-stop latch and the HTTP API."""
 import http.client
 import json
+import socket
 import threading
 
 import pytest
@@ -94,10 +95,14 @@ def test_page_has_settings_and_no_placeholders():
 
 # ---------------------------------------------------------------- HTTP
 
+LOG = []
+
+
 @pytest.fixture
 def server():
     state = WebState(WebConfig(token="s3cret"))
-    srv = make_server(state, host="localhost", port=0)
+    LOG.clear()
+    srv = make_server(state, host="localhost", port=0, log=LOG.append)
     th = threading.Thread(target=srv.serve_forever, daemon=True)
     th.start()
     yield state, srv.server_address[1]
@@ -150,3 +155,20 @@ def test_http_bad_input(server):
     assert request(port, "POST", "/nope?t=s3cret", {})[0] == 404
     assert request(port, "GET", "/nope?t=s3cret")[0] == 404
     assert state.current() == (0.0, 0.0, False)
+
+
+def test_http_log_has_no_token(server):
+    _, port = server
+    request(port, "GET", "/status?t=s3cret")
+    request(port, "GET", "/?x=1&t=wrong")
+    request(port, "POST", "/cmd?t=s3cret", {"v": 0.1})
+    assert len(LOG) == 2                                      # /cmd is not logged
+    assert all("s3cret" not in line and "wrong" not in line for line in LOG)
+    assert "t=***" in LOG[0]
+
+
+def test_http_bad_request_line_gets_an_answer(server):
+    _, port = server
+    with socket.create_connection(("localhost", port), timeout=5) as s:
+        s.sendall(b"\x16\x03\x01 not http\r\n\r\n")         # e.g. https:// typed for the page
+        assert b" 400 " in s.recv(200)

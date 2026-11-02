@@ -15,6 +15,7 @@ from __future__ import annotations
 import hmac
 import json
 import math
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -230,6 +231,9 @@ def render_page(cfg: WebConfig) -> str:
                 .replace("%ANG%", repr(cfg.max_angular)))
 
 
+TOKEN_IN_QUERY = re.compile(r"([?&]t=)[^&\s]*")
+
+
 def make_handler(state: WebState, log=None):
     page = render_page(state.cfg).encode("utf-8")
     token = state.cfg.token
@@ -239,9 +243,10 @@ def make_handler(state: WebState, log=None):
         server_version = "failsafe-teleop/1.0"
 
         def log_message(self, fmt, *args):
-            # /cmd arrives about 15 times a second; log only the rest
-            if log is not None and "/cmd" not in self.path:
-                log("%s %s" % (self.client_address[0], fmt % args))
+            # /cmd arrives about 15 times a second; log only the rest, without the token.
+            # self.path is not set yet when the request line itself was bad.
+            if log is not None and urlsplit(getattr(self, "path", "")).path != "/cmd":
+                log("%s %s" % (self.client_address[0], TOKEN_IN_QUERY.sub(r"\1***", fmt % args)))
 
         def _authed(self):
             if not token:
