@@ -249,6 +249,14 @@ def test_parameters_scale_and_map_axes():
     assert ang == pytest.approx(2.0 * 16384 / 32767)
 
 
+def test_full_stick_never_exceeds_the_maxima():
+    s = connected_state()
+    for data in (ev(0, BTN | INIT, DEADMAN), PRESS, ev(-32768, AXIS, 1), ev(-32768, AXIS, 0)):
+        s.event(data)
+    lin, ang = s.command()
+    assert lin == s.cfg.max_linear and ang == s.cfg.max_angular
+
+
 @pytest.mark.parametrize("bad", [
     {"max_linear": float("nan")}, {"max_linear": float("inf")}, {"max_angular": -0.6},
     {"deadzone": 1.0}, {"deadzone": -0.1}, {"deadzone": float("nan")},

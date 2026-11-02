@@ -90,7 +90,7 @@ class PadState:
                 elif self.seen_release and not init:
                     self.armed = True
         elif ev_type == JS_EVENT_AXIS:
-            self.axes[number] = value / 32767.0
+            self.axes[number] = max(-1.0, value / 32767.0)   # -32768 would exceed full stick
 
     def held(self):
         return self.present and self.armed and bool(self.buttons.get(self.cfg.deadman_button))
