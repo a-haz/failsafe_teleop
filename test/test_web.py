@@ -79,6 +79,16 @@ def test_reset_does_not_resume_old_command(st):
     assert st.current()[0] == pytest.approx(0.3)
 
 
+def test_client_count_forgets_quiet_clients(st):
+    st.set_cmd(0.5, 0.0, "10.0.0.2")
+    st.set_cmd(0.5, 0.0, "10.0.0.3")
+    assert st.snapshot()["clients"] == 2
+    st.clock_.t += 10.0                       # the second phone left
+    st.set_cmd(0.5, 0.0, "10.0.0.2")
+    assert st.snapshot()["clients"] == 1
+    assert list(st.clients) == ["10.0.0.2"]
+
+
 def test_non_finite_values_stop(st):
     st.set_cmd(1.0, 0.0)
     st.set_cmd(float("nan"), 0.0)

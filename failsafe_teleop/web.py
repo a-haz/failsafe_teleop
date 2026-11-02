@@ -23,6 +23,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
 
+CLIENT_WINDOW_S = 3.0             # a client counts as connected this long after its last command
+
+
 @dataclass
 class WebConfig:
     max_linear: float = 0.3      # m/s at full deflection
@@ -69,6 +72,9 @@ class WebState:
                 self.w = max(-1.0, min(1.0, float(w))) * self.cfg.max_angular
             self.stamp = now
             self.clients[addr] = now
+            for a, seen in list(self.clients.items()):
+                if now - seen > CLIENT_WINDOW_S:
+                    del self.clients[a]
 
     def set_estop(self, on):
         with self.lock:
@@ -104,7 +110,7 @@ class WebState:
                 "battery_v": battery_v,
                 "lin_max": self.cfg.max_linear,
                 "ang_max": self.cfg.max_angular,
-                "clients": len(self.clients),
+                "clients": sum(1 for seen in self.clients.values() if now - seen <= CLIENT_WINDOW_S),
             }
 
 
