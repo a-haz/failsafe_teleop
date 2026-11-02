@@ -33,7 +33,9 @@ Phone (`web_teleop`):
   covers a dropped WiFi link, a locked phone and a closed tab.
 - E-STOP latches zero until it is reset on the page. After a reset the robot
   stays still until a new command arrives.
-- An optional token protects the page: open `http://<robot>:8080/?t=<token>`.
+- A token protects the page and the API: open `http://<robot>:8080/?t=<token>`.
+  Set it with the `token` parameter; when it is empty, the node makes a
+  random one at startup and logs the full URL.
 
 Both nodes publish one last zero when they are stopped with Ctrl-C or
 SIGTERM, before rclpy shuts down.
@@ -103,11 +105,12 @@ Parameters of `web_teleop`:
 | max_angular | 0.6 | rad/s at full deflection |
 | watchdog_s | 0.4 | zero after this long without a command |
 | deadzone | 0.12 | applied in the page |
-| token | (empty) | required in the URL when set |
+| token | (empty) | required in the URL; empty = a random one per run, shown in the log |
 | battery_topic | (empty) | optional sensor_msgs/BatteryState shown on the page |
 | rate_hz | 20.0 | publish rate |
 
-The page is plain HTTP. Use it on a network you trust and set a token.
+The page is plain HTTP, so the token travels in clear text. Use it on a
+network you trust.
 
 ## Running tests
 

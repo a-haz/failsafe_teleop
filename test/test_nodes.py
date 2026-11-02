@@ -224,3 +224,26 @@ def test_web_main_publishes_zero_on_signal(fake_ros, sig):
     node = ROS.spun
     assert last_published(node) == (0.0, 0.0)
     assert node.state.estop is True and node.destroyed and ROS.ok is False
+
+
+def test_web_node_never_serves_without_a_token(fake_ros):
+    fake_ros.update({"host": "localhost", "port": 0})
+    mod = importlib.import_module("failsafe_teleop.web_node")
+    node = mod.WebTeleopNode()
+    try:
+        token = node.state.cfg.token
+        assert len(token) >= 12
+        assert any("?t=" + token in m for _, m in node.logger.lines)   # the operator needs the URL
+    finally:
+        node.stop()
+
+
+def test_web_node_keeps_a_configured_token_out_of_the_log(fake_ros):
+    fake_ros.update({"host": "localhost", "port": 0, "token": "pick-something"})
+    mod = importlib.import_module("failsafe_teleop.web_node")
+    node = mod.WebTeleopNode()
+    try:
+        assert node.state.cfg.token == "pick-something"
+        assert not any("pick-something" in m for _, m in node.logger.lines)
+    finally:
+        node.stop()
