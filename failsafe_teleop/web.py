@@ -197,8 +197,11 @@ pad.addEventListener('pointermove', function (e) { if (active) { fromPointer(e);
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
   pad.addEventListener(ev, release);
 });
-window.addEventListener('blur', release);
-document.addEventListener('visibilitychange', function () { if (document.hidden) release(); });
+// Keys released while the page is out of focus send no keyup, so forget them all;
+// a stale entry would keep driving once any other key is pressed and released.
+function releaseAll() { keys = {}; release(); }
+window.addEventListener('blur', releaseAll);
+document.addEventListener('visibilitychange', function () { if (document.hidden) releaseAll(); });
 
 var KEYMAP = {ArrowUp: [1, 0], KeyW: [1, 0], ArrowDown: [-1, 0], KeyS: [-1, 0],
               ArrowLeft: [0, 1], KeyA: [0, 1], ArrowRight: [0, -1], KeyD: [0, -1]};

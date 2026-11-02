@@ -130,6 +130,13 @@ def test_page_estop_toggle_is_unambiguous():
     assert "function toggleEstop() { estop = !estop; showEstop();" in page
 
 
+def test_page_forgets_held_keys_when_it_loses_focus():
+    page = render_page(WebConfig())
+    assert "function releaseAll() { keys = {}; release(); }" in page
+    assert "window.addEventListener('blur', releaseAll);" in page
+    assert "if (document.hidden) releaseAll();" in page
+
+
 # ---------------------------------------------------------------- HTTP
 
 LOG = []
