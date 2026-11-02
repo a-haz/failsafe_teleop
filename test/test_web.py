@@ -87,6 +87,15 @@ def test_non_finite_values_stop(st):
     assert st.current()[:2] == (0.0, 0.0)
 
 
+def test_status_is_valid_json_with_unknown_battery(st):
+    for volts in (float("nan"), float("inf")):     # BatteryState marks unknown values as NaN
+        st.battery_v = volts
+        snap = json.loads(json.dumps(st.snapshot(), allow_nan=False))
+        assert snap["battery_v"] is None
+    st.battery_v = 24.6
+    assert st.snapshot()["battery_v"] == 24.6
+
+
 def test_page_has_settings_and_no_placeholders():
     page = render_page(WebConfig(max_linear=0.25, max_angular=0.5, deadzone=0.1))
     assert "%" + "LIN%" not in page and "%" + "DEADZONE%" not in page

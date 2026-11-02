@@ -78,6 +78,9 @@ class WebState:
 
     def snapshot(self):
         now = self.clock()
+        battery_v = self.battery_v
+        if battery_v is not None and not math.isfinite(battery_v):
+            battery_v = None      # NaN (unknown) is not valid JSON and would break the page's status poll
         with self.lock:
             age = self._age(now)
             live = (not self.estop) and age is not None and age <= self.cfg.watchdog_s
@@ -87,7 +90,7 @@ class WebState:
                 "live": live,
                 "estop": self.estop,
                 "age_ms": None if age is None else int(age * 1000),
-                "battery_v": self.battery_v,
+                "battery_v": battery_v,
                 "lin_max": self.cfg.max_linear,
                 "ang_max": self.cfg.max_angular,
                 "clients": len(self.clients),
