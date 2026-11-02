@@ -192,13 +192,19 @@ function keyUpdate() {
   } else if (active) { release(); }
 }
 window.addEventListener('keydown', function (e) {
-  if (e.code === 'Space') { toggleEstop(); e.preventDefault(); return; }
+  // a held space bar auto-repeats; toggling on every repeat could end in a reset
+  if (e.code === 'Space') { if (!e.repeat) toggleEstop(); e.preventDefault(); return; }
   if (!KEYMAP[e.code]) return;
   keys[e.code] = 1; keyUpdate(); e.preventDefault();
 });
 window.addEventListener('keyup', function (e) { keys[e.code] = 0; keyUpdate(); });
 
-function toggleEstop() { estop = !estop; post('/estop', {on: estop}).then(poll); }
+// The button always says what the next tap sends, also while /status is unreachable.
+function showEstop() {
+  estopBtn.textContent = estop ? 'E-STOP LATCHED, TAP TO RESET' : 'E-STOP';
+  estopBtn.classList.toggle('armed', estop);
+}
+function toggleEstop() { estop = !estop; showEstop(); post('/estop', {on: estop}).then(poll); }
 estopBtn.addEventListener('click', toggleEstop);
 
 function render() {
@@ -211,8 +217,7 @@ function poll() {
   fetch('/status' + q())
     .then(function (r) { return r.json(); }).then(function (s) {
       estop = s.estop;
-      estopBtn.textContent = estop ? 'E-STOP LATCHED, TAP TO RESET' : 'E-STOP';
-      estopBtn.classList.toggle('armed', estop);
+      showEstop();
       dot.className = 'dot' + (s.estop ? ' stop' : (s.live ? ' on' : ''));
       stateEl.textContent = s.estop ? 'stopped' : (s.live ? 'driving' : 'idle');
       battEl.textContent = s.battery_v ? 'battery ' + s.battery_v.toFixed(1) + ' V' : 'battery --';

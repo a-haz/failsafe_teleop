@@ -93,6 +93,14 @@ def test_page_has_settings_and_no_placeholders():
     assert "DEAD = 0.1" in page and "* 0.25" in page and "* 0.5" in page
 
 
+def test_page_estop_toggle_is_unambiguous():
+    page = render_page(WebConfig())
+    # a held space bar must not toggle again on every key repeat
+    assert "if (!e.repeat) toggleEstop();" in page
+    # the label follows each tap at once, not only the next successful /status poll
+    assert "function toggleEstop() { estop = !estop; showEstop();" in page
+
+
 # ---------------------------------------------------------------- HTTP
 
 LOG = []
