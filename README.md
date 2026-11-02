@@ -35,6 +35,9 @@ Phone (`web_teleop`):
   stays still until a new command arrives.
 - An optional token protects the page: open `http://<robot>:8080/?t=<token>`.
 
+Both nodes publish one last zero when they are stopped with Ctrl-C or
+SIGTERM, before rclpy shuts down.
+
 The decision logic lives in `failsafe_teleop/joystick.py` and
 `failsafe_teleop/web.py`, which do not import ROS. The nodes only read that
 logic on a timer (20 Hz by default) and publish the result.

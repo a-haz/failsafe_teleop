@@ -1,11 +1,11 @@
 """ROS 2 node: phone web joystick with a watchdog and a latched e-stop."""
 import threading
 
-import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
 from sensor_msgs.msg import BatteryState
 
+from failsafe_teleop.spin import run
 from failsafe_teleop.web import WebConfig, WebState, make_server
 
 
@@ -51,22 +51,15 @@ class WebTeleopNode(Node):
 
     def stop(self):
         self.state.set_estop(True)
-        self.pub.publish(Twist())
-        self.server.shutdown()
-        self.server.server_close()
+        try:
+            self.pub.publish(Twist())
+        finally:
+            self.server.shutdown()
+            self.server.server_close()
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    node = WebTeleopNode()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.stop()
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run(WebTeleopNode, args)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 """ROS 2 node: hold-to-drive gamepad teleop publishing geometry_msgs/Twist."""
 import time
 
-import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.node import Node
 
 from failsafe_teleop.joystick import PadConfig, Teleop
+from failsafe_teleop.spin import run
 
 
 class JoyTeleopNode(Node):
@@ -52,21 +52,14 @@ class JoyTeleopNode(Node):
             self.pub.publish(msg)
 
     def stop(self):
-        self.pub.publish(Twist())
-        self.loop.close()
+        try:
+            self.pub.publish(Twist())
+        finally:
+            self.loop.close()
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    node = JoyTeleopNode()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.stop()
-        node.destroy_node()
-        rclpy.try_shutdown()
+    run(JoyTeleopNode, args)
 
 
 if __name__ == "__main__":

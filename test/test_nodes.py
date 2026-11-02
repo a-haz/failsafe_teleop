@@ -2,6 +2,7 @@
 message packages, so they run without a ROS installation. They check parameter
 handling and what each timer tick publishes, not ROS itself."""
 import importlib
+import signal
 import sys
 import types
 
@@ -24,12 +25,19 @@ class BatteryState:
         self.voltage = voltage
 
 
+# State of the fake rclpy: whether the context is up, whether rclpy's own
+# signal handlers were installed, and which signal the next spin() delivers.
+ROS = types.SimpleNamespace(ok=False, handlers=False, signal=None)
+
+
 class Pub:
     def __init__(self, topic):
         self.topic = topic
         self.msgs = []
 
     def publish(self, msg):
+        if not ROS.ok:                       # rcl_publish after rcl_shutdown
+            raise RuntimeError("Failed to publish: publisher's context is invalid")
         self.msgs.append(msg)
 
 
@@ -76,27 +84,69 @@ class Node:
     def get_logger(self):
         return self.logger
 
+    def destroy_node(self):
+        self.destroyed = True
+
+
+class SignalHandlerOptions:
+    NO = 0
+    ALL = 3
+
+
+def fake_init(args=None, context=None, domain_id=None, signal_handler_options=None):
+    ROS.ok = True
+    ROS.handlers = signal_handler_options != SignalHandlerOptions.NO   # None means ALL in rclpy
+
+
+def fake_spin(node):
+    """Deliver ROS.signal the way rclpy does: its own handlers, when installed,
+    shut the context down before control returns to the caller."""
+    ROS.spun = node
+    if ROS.handlers:
+        ROS.ok = False
+        if ROS.signal == signal.SIGINT:
+            raise KeyboardInterrupt
+        return
+    if ROS.signal == signal.SIGINT:
+        raise KeyboardInterrupt
+    handler = signal.getsignal(ROS.signal)
+    assert callable(handler), "the default action would kill the node without a stop"
+    handler(ROS.signal, None)
+
+
+def fake_try_shutdown():
+    ROS.ok = False
+
 
 @pytest.fixture
 def fake_ros(monkeypatch):
     rclpy = types.ModuleType("rclpy")
+    rclpy.init = fake_init
+    rclpy.spin = fake_spin
+    rclpy.try_shutdown = fake_try_shutdown
     rclpy_node = types.ModuleType("rclpy.node")
     rclpy_node.Node = Node
     rclpy.node = rclpy_node
+    rclpy_signals = types.ModuleType("rclpy.signals")
+    rclpy_signals.SignalHandlerOptions = SignalHandlerOptions
+    rclpy.signals = rclpy_signals
     geometry_msgs = types.ModuleType("geometry_msgs")
     geometry_msgs_msg = types.ModuleType("geometry_msgs.msg")
     geometry_msgs_msg.Twist = Twist
     sensor_msgs = types.ModuleType("sensor_msgs")
     sensor_msgs_msg = types.ModuleType("sensor_msgs.msg")
     sensor_msgs_msg.BatteryState = BatteryState
-    for name, mod in [("rclpy", rclpy), ("rclpy.node", rclpy_node), ("geometry_msgs", geometry_msgs),
-                      ("geometry_msgs.msg", geometry_msgs_msg), ("sensor_msgs", sensor_msgs),
-                      ("sensor_msgs.msg", sensor_msgs_msg)]:
+    for name, mod in [("rclpy", rclpy), ("rclpy.node", rclpy_node), ("rclpy.signals", rclpy_signals),
+                      ("geometry_msgs", geometry_msgs), ("geometry_msgs.msg", geometry_msgs_msg),
+                      ("sensor_msgs", sensor_msgs), ("sensor_msgs.msg", sensor_msgs_msg)]:
         monkeypatch.setitem(sys.modules, name, mod)
-    for name in ("failsafe_teleop.joy_node", "failsafe_teleop.web_node"):
+    for name in ("failsafe_teleop.joy_node", "failsafe_teleop.web_node", "failsafe_teleop.spin"):
         monkeypatch.delitem(sys.modules, name, raising=False)
     OVERRIDES.clear()
+    ROS.ok, ROS.handlers, ROS.signal = True, False, None
+    sigterm = signal.getsignal(signal.SIGTERM)
     yield OVERRIDES
+    signal.signal(signal.SIGTERM, sigterm)
     OVERRIDES.clear()
 
 
@@ -148,3 +198,29 @@ def test_web_node_publishes_watchdogged_command(fake_ros):
     finally:
         node.stop()
     assert pub.msgs[-1].linear.x == 0.0
+
+
+def last_published(node):
+    msg = node.pubs[0].msgs[-1]
+    return msg.linear.x, msg.angular.z
+
+
+@pytest.mark.parametrize("sig", [signal.SIGINT, signal.SIGTERM])
+def test_joy_main_publishes_zero_on_signal(fake_ros, sig):
+    mod = importlib.import_module("failsafe_teleop.joy_node")
+    ROS.signal = sig
+    mod.main([])
+    node = ROS.spun
+    assert last_published(node) == (0.0, 0.0)              # sent while the context was still up
+    assert node.destroyed and ROS.ok is False
+
+
+@pytest.mark.parametrize("sig", [signal.SIGINT, signal.SIGTERM])
+def test_web_main_publishes_zero_on_signal(fake_ros, sig):
+    fake_ros.update({"host": "localhost", "port": 0})
+    mod = importlib.import_module("failsafe_teleop.web_node")
+    ROS.signal = sig
+    mod.main([])
+    node = ROS.spun
+    assert last_published(node) == (0.0, 0.0)
+    assert node.state.estop is True and node.destroyed and ROS.ok is False
