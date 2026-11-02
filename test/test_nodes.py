@@ -247,3 +247,12 @@ def test_web_node_keeps_a_configured_token_out_of_the_log(fake_ros):
         assert not any("pick-something" in m for _, m in node.logger.lines)
     finally:
         node.stop()
+
+
+@pytest.mark.parametrize("module", ["failsafe_teleop.joy_node", "failsafe_teleop.web_node"])
+@pytest.mark.parametrize("rate", [0.0, -5.0, float("nan")])
+def test_nodes_reject_a_bad_rate(fake_ros, module, rate):
+    fake_ros.update({"host": "localhost", "port": 0, "rate_hz": rate})
+    mod = importlib.import_module(module)
+    with pytest.raises(ValueError):
+        mod.JoyTeleopNode() if module.endswith("joy_node") else mod.WebTeleopNode()

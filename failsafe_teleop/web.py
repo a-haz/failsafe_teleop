@@ -31,6 +31,17 @@ class WebConfig:
     deadzone: float = 0.12       # applied in the page
     token: str = ""              # empty = no token required
 
+    def __post_init__(self):
+        for name in ("max_linear", "max_angular"):
+            value = getattr(self, name)
+            if not (math.isfinite(value) and value >= 0):
+                raise ValueError("%s must be a finite number >= 0, got %r" % (name, value))
+        # a NaN or infinite watchdog would never fire
+        if not (math.isfinite(self.watchdog_s) and self.watchdog_s > 0):
+            raise ValueError("watchdog_s must be a finite number > 0, got %r" % (self.watchdog_s,))
+        if not 0.0 <= self.deadzone < 1.0:
+            raise ValueError("deadzone must be in [0, 1), got %r" % (self.deadzone,))
+
 
 class WebState:
     def __init__(self, cfg: WebConfig | None = None, clock=time.monotonic):

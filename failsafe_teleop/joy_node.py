@@ -1,4 +1,5 @@
 """ROS 2 node: hold-to-drive gamepad teleop publishing geometry_msgs/Twist."""
+import math
 import time
 
 from geometry_msgs.msg import Twist
@@ -17,6 +18,8 @@ class JoyTeleopNode(Node):
         topic = p("cmd_vel_topic", "cmd_vel").value
         rate = float(p("rate_hz", 20.0).value)
         override = bool(p("override", False).value)
+        if not (math.isfinite(rate) and rate > 0):
+            raise ValueError("rate_hz must be a finite number > 0, got %r" % rate)
         self.cfg = PadConfig(
             max_linear=float(p("max_linear", d.max_linear).value),
             max_angular=float(p("max_angular", d.max_angular).value),

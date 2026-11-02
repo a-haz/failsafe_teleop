@@ -109,6 +109,10 @@ Parameters of `web_teleop`:
 | battery_topic | (empty) | optional sensor_msgs/BatteryState shown on the page |
 | rate_hz | 20.0 | publish rate |
 
+Speeds must be finite and not negative, the deadzone in [0, 1), and the
+rate and the watchdog positive; a node with any other value refuses to
+start.
+
 The page is plain HTTP, so the token travels in clear text. Use it on a
 network you trust.
 

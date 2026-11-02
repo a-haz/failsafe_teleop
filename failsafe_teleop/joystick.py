@@ -21,6 +21,7 @@ offline with scripted devices.
 from __future__ import annotations
 
 import errno
+import math
 import os
 import select
 import struct
@@ -44,6 +45,16 @@ class PadConfig:
     deadzone: float = 0.15
     reopen_s: float = 0.5        # retry interval for a lost pad
     max_events: int = 64         # events drained per cycle; a real pad sends far fewer
+
+    def __post_init__(self):
+        for name in ("max_linear", "max_angular", "reopen_s"):
+            value = getattr(self, name)
+            if not (math.isfinite(value) and value >= 0):
+                raise ValueError("%s must be a finite number >= 0, got %r" % (name, value))
+        if not 0.0 <= self.deadzone < 1.0:
+            raise ValueError("deadzone must be in [0, 1), got %r" % (self.deadzone,))
+        if self.max_events < 1:
+            raise ValueError("max_events must be at least 1, got %r" % (self.max_events,))
 
 
 class PadState:

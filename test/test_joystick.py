@@ -249,6 +249,16 @@ def test_parameters_scale_and_map_axes():
     assert ang == pytest.approx(2.0 * 16384 / 32767)
 
 
+@pytest.mark.parametrize("bad", [
+    {"max_linear": float("nan")}, {"max_linear": float("inf")}, {"max_angular": -0.6},
+    {"deadzone": 1.0}, {"deadzone": -0.1}, {"deadzone": float("nan")},
+    {"reopen_s": float("nan")}, {"max_events": 0},
+])
+def test_unsafe_parameters_are_rejected(bad):
+    with pytest.raises(ValueError):
+        jt.PadConfig(**bad)
+
+
 def test_deadzone_and_other_buttons_do_not_arm():
     s = connected_state()
     for data in (ev(0, BTN | INIT, DEADMAN), ev(1, BTN, DEADMAN + 1), ev(-32767, AXIS, 1)):

@@ -96,6 +96,16 @@ def test_status_is_valid_json_with_unknown_battery(st):
     assert st.snapshot()["battery_v"] == 24.6
 
 
+@pytest.mark.parametrize("bad", [
+    {"watchdog_s": float("nan")}, {"watchdog_s": float("inf")}, {"watchdog_s": 0.0},
+    {"max_linear": float("nan")}, {"max_angular": float("inf")}, {"max_linear": -0.3},
+    {"deadzone": 1.5},
+])
+def test_unsafe_settings_are_rejected(bad):
+    with pytest.raises(ValueError):
+        WebConfig(**bad)
+
+
 def test_page_has_settings_and_no_placeholders():
     page = render_page(WebConfig(max_linear=0.25, max_angular=0.5, deadzone=0.1))
     assert "%" + "LIN%" not in page and "%" + "DEADZONE%" not in page

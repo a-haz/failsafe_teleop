@@ -1,4 +1,5 @@
 """ROS 2 node: phone web joystick with a watchdog and a latched e-stop."""
+import math
 import secrets
 import threading
 
@@ -19,6 +20,8 @@ class WebTeleopNode(Node):
         port = int(p("port", 8080).value)
         topic = p("cmd_vel_topic", "cmd_vel").value
         rate = float(p("rate_hz", 20.0).value)
+        if not (math.isfinite(rate) and rate > 0):
+            raise ValueError("rate_hz must be a finite number > 0, got %r" % rate)
         battery_topic = p("battery_topic", "").value
         token = str(p("token", "").value)
         made_token = not token
